@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  background-color: #090a0f;
+  color: #f3f4f6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle, elegant ambient backdrop */
+.ambient-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(120, 119, 198, 0.15), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.04), transparent 50%),
+    #090a0f;
+}
+
+/* Glass & Panel styling */
+.panel-glass {
+  background: rgba(17, 19, 28, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.panel-card {
+  background: #11131c;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Clean Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Markdown Formatting */
+.prose-minimal {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: #e5e7eb;
+}
+.prose-minimal p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+.prose-minimal p:first-child { margin-top: 0; }
+.prose-minimal p:last-child { margin-bottom: 0; }
+
+.prose-minimal h1, .prose-minimal h2, .prose-minimal h3 {
+  color: #ffffff;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 1em;
+  margin-bottom: 0.35em;
+}
+.prose-minimal h1 { font-size: 1.25rem; }
+.prose-minimal h2 { font-size: 1.1rem; }
+.prose-minimal h3 { font-size: 1rem; }
+
+.prose-minimal ul, .prose-minimal ol {
+  padding-left: 1.2rem;
+  margin: 0.5em 0;
+}
+.prose-minimal li {
+  margin-bottom: 0.25em;
+}
+
+.prose-minimal blockquote {
+  border-left: 2px solid #6366f1;
+  padding-left: 0.75rem;
+  color: #94a3b8;
+  font-style: normal;
+  margin: 0.6em 0;
+}
+
+.prose-minimal code {
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.15em 0.35em;
+  border-radius: 5px;
+  font-size: 0.85em;
+  color: #a5b4fc;
+}
+
+.prose-minimal pre {
+  background: #0d0f17;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  padding: 0.85rem;
+  overflow-x: auto;
+  margin: 0.75em 0;
+}
+.prose-minimal pre code {
+  background: transparent;
+  padding: 0;
+  border: none;
+  color: #e2e8f0;
+}
+
+/* Prevent tables from breaking mobile screens */
+.prose-minimal table {
+  width: 100%;
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0.8em 0;
+  font-size: 0.88rem;
+}
+.prose-minimal th, .prose-minimal td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+}
+.prose-minimal th {
+  background: rgba(255, 255, 255, 0.05);
+  color: #f3f4f6;
+  font-weight: 500;
+}
+
+.prose-minimal a, .link-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 100%;
+  color: #818cf8;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  text-decoration: none;
+  font-family: var(--font-mono);
+  word-break: break-all;
+  transition: all 0.15s ease;
+}
+.prose-minimal a:hover, .link-badge:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+  border-color: rgba(99, 102, 241, 0.4);
+}
