@@ -700,6 +700,13 @@ export default function App() {
         {currentView === 'models' ? (
           <ModelsDirectory 
             activeModelId={selectedModel}
+            conversations={conversations}
+            customKeys={{
+              groq: customGroqKey,
+              openrouter: customOpenRouterKey,
+              nvidia: customNvidiaKey,
+              huggingface: customHuggingFaceKey
+            }}
             onSelectModel={(id) => {
               setSelectedModel(id);
               setCurrentView('chat');

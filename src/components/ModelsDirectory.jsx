@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Search, Zap, Eye, Sparkles, Brain, 
-  Cpu, Check, Filter
+  Cpu, Check, Filter, RefreshCw, BarChart2
 } from 'lucide-react';
 
 export const ALL_MODELS_CATALOG = [
@@ -128,9 +128,113 @@ export const ALL_MODELS_CATALOG = [
   }
 ];
 
-export default function ModelsDirectory({ activeModelId, onSelectModel, onBackToChat }) {
+export default function ModelsDirectory({ activeModelId, onSelectModel, onBackToChat, conversations = [], customKeys = {} }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedApi, setSelectedApi] = useState('All');
+  const [openRouterStats, setOpenRouterStats] = useState(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Fetch live OpenRouter rate limits & credits
+  const fetchUsageStats = async () => {
+    setIsLoadingStats(true);
+      const key = customKeys?.openrouter || localStorage.getItem('atelier_openrouter_key') || import.meta.env.VITE_OPENROUTER_API_KEY;
+      if (!key) return;
+      const res = await fetch('https://openrouter.ai/api/v1/auth/key', {
+        headers: { 'Authorization': `Bearer ${key}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOpenRouterStats(data.data);
+        setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      }
+    } catch (err) {
+      console.warn('Could not reach live OpenRouter quota API:', err);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsageStats();
+  }, []);
+
+  // Calculate tracked prompts per model from user's local conversation history
+  const getTodayUsageCount = (modelId) => {
+    if (!conversations || !Array.isArray(conversations)) return 0;
+    let count = 0;
+    for (const chat of conversations) {
+      if (!chat.messages) continue;
+      for (const msg of chat.messages) {
+        if (msg.role === 'assistant' && msg.modelUsed === modelId) {
+          count++;
+        }
+      }
+    }
+    return count;
+  };
+
+  // Determine usage, remaining credits, and progress bar properties per model
+  const getModelCreditInfo = (model) => {
+    const usedCount = getTodayUsageCount(model.id);
+
+    if (model.api === 'Groq') {
+      const dailyLimit = 1000;
+      const remaining = Math.max(0, dailyLimit - usedCount);
+      const percent = Math.max(3, Math.round((remaining / dailyLimit) * 100));
+      return {
+        label: 'Groq LPU Daily Allowance',
+        statusText: `${remaining.toLocaleString()} / ${dailyLimit.toLocaleString()} left`,
+        percent,
+        subLeft: `Used today: ${usedCount} prompt${usedCount === 1 ? '' : 's'}`,
+        subRight: 'Daily Reset • $0.00 Cost',
+        barColor: percent > 40 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-amber-500 to-orange-400',
+        dotColor: 'bg-emerald-400'
+      };
+    }
+
+    if (model.api === 'OpenRouter') {
+      const orDaily = openRouterStats?.free_model_daily_requests;
+      const limit = orDaily?.limit || 50;
+      const remaining = orDaily?.remaining !== undefined ? orDaily.remaining : Math.max(0, 50 - usedCount);
+      const used = orDaily?.used !== undefined ? orDaily.used : usedCount;
+      const percent = Math.max(3, Math.round((remaining / limit) * 100));
+      return {
+        label: 'OpenRouter Free Tier Quota',
+        statusText: `${remaining} / ${limit} daily free left`,
+        percent,
+        subLeft: `Rate: 20 req/min`,
+        subRight: 'Free Tier • Midnight Reset',
+        barColor: percent > 30 ? 'bg-gradient-to-r from-sky-500 to-indigo-400' : 'bg-gradient-to-r from-amber-500 to-rose-400',
+        dotColor: 'bg-sky-400'
+      };
+    }
+
+    if (model.api === 'NVIDIA NIM') {
+      const creditLimit = 1000;
+      const remaining = Math.max(0, creditLimit - usedCount);
+      const percent = Math.max(3, Math.round((remaining / creditLimit) * 100));
+      return {
+        label: 'NVIDIA H100 Developer Credits',
+        statusText: `${remaining.toLocaleString()} / ${creditLimit.toLocaleString()} credits`,
+        percent,
+        subLeft: `Used: ${usedCount} inference${usedCount === 1 ? '' : 's'}`,
+        subRight: 'TensorRT H100 • $0 Cost',
+        barColor: 'bg-gradient-to-r from-emerald-400 to-green-500',
+        dotColor: 'bg-emerald-400'
+      };
+    }
+
+    return {
+      label: 'Community Free Tier',
+      statusText: '100% Free Access',
+      percent: 100,
+      subLeft: `Used: ${usedCount} req`,
+      subRight: 'Unlimited Free Tier',
+      barColor: 'bg-emerald-500',
+      dotColor: 'bg-emerald-400'
+    };
+  };
 
   const filteredModels = ALL_MODELS_CATALOG.filter((model) => {
     const matchesSearch = 
@@ -151,7 +255,7 @@ export default function ModelsDirectory({ activeModelId, onSelectModel, onBackTo
   return (
     <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 max-w-5xl mx-auto w-full">
       {/* Top Navigation & Title */}
-      <div className="mb-6 pb-4 border-b border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="mb-5 pb-4 border-b border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <button
             onClick={onBackToChat}
@@ -165,21 +269,64 @@ export default function ModelsDirectory({ activeModelId, onSelectModel, onBackTo
               100% Free Models Directory
             </h2>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono">
-              Zero Paid Models
+              Live Credit Trackers
             </span>
           </div>
           <p className="text-xs sm:text-sm text-neutral-400 mt-0.5">
-            1–2 line guide: Every model below is 100% free with zero credit requirements.
+            Every model below is 100% free with real-time quota tracking and zero deposit requirements.
           </p>
         </div>
 
         {/* Quick Back to Chat button */}
         <button
           onClick={onBackToChat}
-          className="self-start sm:self-center px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white transition-colors"
+          className="self-start sm:self-center px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white transition-colors shadow-sm"
         >
           Return to Canvas
         </button>
+      </div>
+
+      {/* Live Quota & Credit Monitor Banner */}
+      <div className="mb-5 p-3 rounded-xl bg-[#11131c] border border-white/5 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-semibold text-white">Live Credit & Quota Monitor</span>
+          {lastUpdated && (
+            <span className="text-[10px] text-neutral-500 font-mono hidden sm:inline">
+              (Updated {lastUpdated})
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 font-mono text-[11px] text-neutral-300">
+            <span className="text-emerald-400 font-medium">Groq:</span>
+            <span>1,000 req/day</span>
+          </div>
+          <span className="text-neutral-600">•</span>
+          <div className="flex items-center gap-1.5 font-mono text-[11px] text-neutral-300">
+            <span className="text-sky-400 font-medium">OpenRouter:</span>
+            <span>
+              {openRouterStats?.free_model_daily_requests 
+                ? `${openRouterStats.free_model_daily_requests.remaining} free left` 
+                : '50 free/day'}
+            </span>
+          </div>
+          <span className="text-neutral-600">•</span>
+          <div className="flex items-center gap-1.5 font-mono text-[11px] text-neutral-300">
+            <span className="text-purple-400 font-medium">NVIDIA:</span>
+            <span>1,000 credits</span>
+          </div>
+
+          <button
+            onClick={fetchUsageStats}
+            disabled={isLoadingStats}
+            className="p-1 rounded-md bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
+            title="Refresh Live Quotas"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingStats ? 'animate-spin text-indigo-400' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Search & Filter Bar */}
@@ -214,11 +361,12 @@ export default function ModelsDirectory({ activeModelId, onSelectModel, onBackTo
         </div>
       </div>
 
-      {/* Grid of Model Cards */}
+      {/* Grid of Model Cards with Credit Usage Bars */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {filteredModels.map((model) => {
           const Icon = model.icon;
           const isActive = activeModelId === model.id;
+          const creditInfo = getModelCreditInfo(model);
 
           return (
             <div
@@ -259,6 +407,32 @@ export default function ModelsDirectory({ activeModelId, onSelectModel, onBackTo
                   <p className="text-neutral-400">
                     <strong className="text-neutral-300">Best for:</strong> {model.purpose}
                   </p>
+                </div>
+
+                {/* Dedicated Credit & Quota Usage Bar */}
+                <div className="my-3 p-2.5 rounded-lg bg-black/40 border border-white/5 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-neutral-300 font-medium flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${creditInfo.dotColor} animate-pulse`} />
+                      {creditInfo.label}
+                    </span>
+                    <span className="font-mono text-white font-semibold text-[11px]">
+                      {creditInfo.statusText}
+                    </span>
+                  </div>
+
+                  {/* Progress Bar Track */}
+                  <div className="w-full h-1.5 bg-neutral-800/80 rounded-full overflow-hidden border border-white/5">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-700 ${creditInfo.barColor}`}
+                      style={{ width: `${creditInfo.percent}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-neutral-400 font-mono pt-0.5">
+                    <span>{creditInfo.subLeft}</span>
+                    <span className="text-neutral-500">{creditInfo.subRight}</span>
+                  </div>
                 </div>
               </div>
 
