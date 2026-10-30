@@ -2,12 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, Globe, Image, FileText, Send, Plus, 
   Trash2, Settings, Menu, X, Copy, Check, RotateCcw, 
-  Zap, Brain, Eye, Paperclip, ChevronDown, RefreshCw, Download
+  Zap, Brain, Eye, Paperclip, ChevronDown, RefreshCw, Download,
+  User, Pin, ShieldCheck
 } from 'lucide-react';
 import { marked } from 'marked';
 import { extractTextFromPDF } from './utils/pdfParser';
 import { exportToPdf } from './utils/pdfGenerator';
 import ModelsDirectory from './components/ModelsDirectory';
+import AuthModal from './components/AuthModal';
+import { 
+  supabase, getActiveSession, syncChatToCloud, 
+  loadUserChatsFromCloud, deleteChatFromCloud, 
+  togglePinInCloud, pruneOldUnpinnedChats 
+} from './utils/supabase';
 
 // Custom renderer to format links into clean, compact badges
 const markedRenderer = {
@@ -121,6 +128,8 @@ export default function App() {
   const [currentView, setCurrentView] = useState('chat'); // 'chat' | 'models'
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
@@ -143,9 +152,48 @@ export default function App() {
 
   const currentChat = conversations.find(c => c.id === activeChatId) || conversations[0];
 
+  // Initialize and listen to Supabase Auth session
   useEffect(() => {
+    getActiveSession().then(session => {
+      if (session?.user) {
+        setCurrentUser(session.user);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        setCurrentUser(session.user);
+        const cloudChats = await loadUserChatsFromCloud(session.user.id);
+        if (cloudChats && cloudChats.length > 0) {
+          setConversations(cloudChats);
+          setActiveChatId(cloudChats[0].id);
+          showToast('Loaded synced chats from cloud');
+        }
+      } else {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  // Save to localStorage & sync to Supabase with 90% smart pruning guard
+  useEffect(() => {
+    const { chats: prunedChats, prunedCount } = pruneOldUnpinnedChats(conversations, 80);
+    if (prunedCount > 0) {
+      setConversations(prunedChats);
+      showToast(`90% Auto-Clean: Pruned ${prunedCount} old unpinned chat${prunedCount > 1 ? 's' : ''}`);
+      return;
+    }
+
     localStorage.setItem('atelier_chats_v1', JSON.stringify(conversations));
-  }, [conversations]);
+
+    if (currentUser?.id && currentChat) {
+      syncChatToCloud(currentChat, currentUser.id);
+    }
+  }, [conversations, currentUser]);
 
   useEffect(() => {
     localStorage.setItem('atelier_active_chat', activeChatId);
@@ -197,15 +245,19 @@ export default function App() {
     textareaRef.current?.focus();
   };
 
-  // Delete Chat
-  const handleDeleteChat = (id, e) => {
+  // Delete Chat (Local + Supabase Cloud)
+  const handleDeleteChat = async (id, e) => {
     e.stopPropagation();
+    if (currentUser?.id) {
+      deleteChatFromCloud(id, currentUser.id);
+    }
     if (conversations.length <= 1) {
       setConversations([{
         id: 'canvas-1',
         title: 'New Conversation',
         createdAt: new Date().toISOString(),
-        messages: []
+        messages: [],
+        isPinned: false
       }]);
       setActiveChatId('canvas-1');
       return;
@@ -215,6 +267,25 @@ export default function App() {
     if (activeChatId === id) {
       setActiveChatId(filtered[0].id);
     }
+  };
+
+  // Toggle Pin (Protected from 90% auto-clean)
+  const handleTogglePin = async (chatId, e) => {
+    e.stopPropagation();
+    let updatedPinned = false;
+    setConversations(prev => prev.map(c => {
+      if (c.id === chatId) {
+        updatedPinned = !c.isPinned;
+        return { ...c, isPinned: updatedPinned };
+      }
+      return c;
+    }));
+
+    if (currentUser?.id) {
+      await togglePinInCloud(chatId, updatedPinned, currentUser.id);
+    }
+
+    showToast(updatedPinned ? 'Pinned (Protected from 90% auto-clean)' : 'Chat unpinned');
   };
 
   // Handle Image Upload
@@ -625,6 +696,25 @@ export default function App() {
             <Plus className="w-4 h-4" />
           </button>
 
+          {/* Cloud Sync / Sign In Button */}
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className={`px-2 py-1 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+              currentUser 
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20' 
+                : 'bg-white/5 border-white/10 text-neutral-300 hover:text-white hover:bg-white/10'
+            }`}
+            title={currentUser ? `Cloud Sync: ${currentUser.email}` : "Sign In & Sync Across Devices"}
+          >
+            <User className="w-3.5 h-3.5 text-neutral-300" />
+            <span className="text-[11px] font-medium hidden sm:inline">
+              {currentUser ? currentUser.email.split('@')[0] : 'Sign In'}
+            </span>
+            {currentUser && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            )}
+          </button>
+
           {/* Settings */}
           <button
             onClick={() => setIsSettingsOpen(true)}
@@ -688,6 +778,7 @@ export default function App() {
           <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
             {conversations.map((chat) => {
               const isActive = chat.id === activeChatId;
+              const isPinned = Boolean(chat.isPinned);
               return (
                 <div
                   key={chat.id}
@@ -701,14 +792,34 @@ export default function App() {
                       : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'
                   }`}
                 >
-                  <span className="truncate pr-2">{chat.title}</span>
-                  <button
-                    onClick={(e) => handleDeleteChat(chat.id, e)}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 transition-opacity"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                  <div className="flex items-center gap-1.5 truncate pr-1">
+                    {isPinned && (
+                      <Pin className="w-3 h-3 text-amber-400 shrink-0 fill-amber-400/20" />
+                    )}
+                    <span className="truncate">{chat.title}</span>
+                  </div>
+
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      onClick={(e) => handleTogglePin(chat.id, e)}
+                      className={`p-1 transition-all rounded ${
+                        isPinned 
+                          ? 'opacity-100 text-amber-400 hover:text-amber-300' 
+                          : 'opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-neutral-300'
+                      }`}
+                      title={isPinned ? "Pinned (Immune from 90% auto-clean)" : "Pin chat (Protect from auto-clean)"}
+                    >
+                      <Pin className={`w-3 h-3 ${isPinned ? 'fill-amber-400/20' : ''}`} />
+                    </button>
+
+                    <button
+                      onClick={(e) => handleDeleteChat(chat.id, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-neutral-500 hover:text-rose-400 transition-opacity"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -1050,12 +1161,43 @@ export default function App() {
 
             <div className="space-y-3 py-3 text-xs max-h-[70vh] overflow-y-auto pr-1">
               {/* Cloud Sync Status */}
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-xs text-white">Supabase Cloud Sync</div>
-                  <div className="text-[10px] text-emerald-400 font-mono">mmjyroepqmtfncmjlnym • Active</div>
+              <div className="p-3 rounded-xl bg-indigo-950/20 border border-indigo-500/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-medium text-xs text-white">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Supabase Cloud Sync</span>
+                  </div>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                    currentUser ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 text-neutral-400'
+                  }`}>
+                    {currentUser ? 'Connected' : 'Offline Mode'}
+                  </span>
                 </div>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+
+                <div className="text-[11px] text-neutral-300">
+                  {currentUser ? (
+                    <div>Logged in as: <strong className="text-white font-mono">{currentUser.email}</strong></div>
+                  ) : (
+                    <div>Sign in to sync your conversations across all your mobile and desktop devices.</div>
+                  )}
+                </div>
+
+                {/* 90% Rule Indicator */}
+                <div className="text-[10px] text-emerald-400/90 font-mono bg-emerald-500/5 p-1.5 rounded border border-emerald-500/10 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>90% Auto-Clean Protected (Pinned chats immune)</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    setIsAuthModalOpen(true);
+                  }}
+                  className="w-full py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors"
+                >
+                  {currentUser ? 'Manage Cloud Account' : 'Sign In to Cloud'}
+                </button>
               </div>
 
               <div>
@@ -1134,6 +1276,23 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* =========================================================================
+          AUTH MODAL (Sign In / Sign Up / Magic Link)
+         ========================================================================= */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        user={currentUser}
+        onAuthSuccess={(u) => {
+          setCurrentUser(u);
+          showToast('Signed in & syncing chats');
+        }}
+        onSignOut={() => {
+          setCurrentUser(null);
+          showToast('Signed out of cloud');
+        }}
+      />
     </div>
   );
 }
