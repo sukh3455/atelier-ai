@@ -158,6 +158,19 @@ export default function App() {
     scrollToBottom();
   }, [currentChat?.messages, isStreaming]);
 
+  // Dynamically auto-expand prompt textarea up to 180px and allow smooth scrolling
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    const newHeight = Math.min(Math.max(textarea.scrollHeight, 40), 180);
+    textarea.style.height = `${newHeight}px`;
+  };
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [inputPrompt]);
+
   // Handle New Chat
   const handleNewChat = () => {
     if (currentChat.messages.length === 0) {
@@ -293,6 +306,9 @@ export default function App() {
     }));
 
     setInputPrompt('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '40px';
+    }
     setAttachedImage(null);
     setAttachedPDF(null);
     setIsStreaming(true);
@@ -806,7 +822,7 @@ export default function App() {
           {/* =========================================================================
               CLEAN FLOATING INPUT DOCK
              ========================================================================= */}
-          <div className="p-3 sm:p-4 max-w-2xl w-full mx-auto">
+          <div className="p-3 sm:p-4 max-w-2xl w-full mx-auto relative z-30 pb-4 sm:pb-6">
             {/* Attachment preview banner */}
             {(attachedImage || attachedPDF) && (
               <div className="mb-2 p-2 rounded-xl bg-[#12141e] border border-white/10 flex items-center justify-between text-xs">
@@ -842,7 +858,7 @@ export default function App() {
             {/* Input Bar */}
             <form 
               onSubmit={handleSendMessage}
-              className="bg-[#12141e] border border-white/10 rounded-2xl p-1.5 sm:p-2 flex items-end gap-1.5 shadow-xl"
+              className="bg-[#12141e] border border-white/10 rounded-2xl p-1.5 sm:p-2 flex items-end gap-1.5 shadow-2xl relative z-20 focus-within:border-indigo-500/50 transition-all"
             >
               <input 
                 type="file" 
@@ -860,7 +876,7 @@ export default function App() {
               />
 
               {/* Attachments */}
-              <div className="flex items-center pb-1 pl-1">
+              <div className="flex items-center pb-1.5 pl-1 shrink-0">
                 <button
                   type="button"
                   onClick={() => fileInputImageRef.current?.click()}
@@ -891,30 +907,48 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Text Input */}
+              {/* Text Input with dynamic auto-expansion and mobile newline support */}
               <textarea
                 ref={textareaRef}
                 value={inputPrompt}
-                onChange={(e) => setInputPrompt(e.target.value)}
+                onChange={(e) => {
+                  setInputPrompt(e.target.value);
+                  adjustTextareaHeight();
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
+                  if (e.key === 'Enter') {
+                    const isMobileDevice = typeof window !== 'undefined' && (
+                      window.innerWidth < 768 ||
+                      ('ontouchstart' in window) ||
+                      (navigator.maxTouchPoints > 0)
+                    );
+
+                    // On mobile keyboards, Enter inserts a new line so you can edit comfortably without sending
+                    if (isMobileDevice) {
+                      return;
+                    }
+
+                    // On desktop, Enter sends the prompt, Shift+Enter inserts a new line
+                    if (!e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
                   }
                 }}
                 rows={1}
                 placeholder="Ask anything..."
-                className="flex-1 bg-transparent border-0 focus:ring-0 text-white placeholder-neutral-500 text-sm resize-none max-h-32 py-1.5 px-1 focus:outline-none"
+                style={{ minHeight: '40px', maxHeight: '180px' }}
+                className="flex-1 bg-transparent border-0 focus:ring-0 text-white placeholder-neutral-500 text-sm sm:text-base resize-none py-2 px-1.5 focus:outline-none overflow-y-auto leading-relaxed"
               />
 
               {/* Send Button */}
               <button
                 type="submit"
                 disabled={isStreaming || (!inputPrompt.trim() && !attachedImage && !attachedPDF)}
-                className={`p-2 rounded-xl transition-all ${
+                className={`p-2.5 rounded-xl transition-all shrink-0 mb-0.5 ${
                   isStreaming || (!inputPrompt.trim() && !attachedImage && !attachedPDF)
-                    ? 'text-neutral-600 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                    ? 'text-neutral-600 bg-white/5 cursor-not-allowed'
+                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg active:scale-95'
                 }`}
                 title="Send"
               >

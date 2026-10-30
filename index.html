@@ -9,6 +9,56 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+      /* Suppress injected Netlify badge & drawer overlay */
+      #netlify-badge,
+      .netlify-badge,
+      [data-netlify-badge],
+      [data-netlify-feedback],
+      netlify-drawer,
+      #netlify-drawer,
+      iframe[src*="netlify"],
+      div[class*="netlify-badge"],
+      div[class*="feedback-button"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        z-index: -9999 !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
+      }
+    </style>
+    <script>
+      (function() {
+        function removeNetlifyBadge() {
+          const selectors = [
+            '#netlify-badge',
+            '.netlify-badge',
+            '[data-netlify-badge]',
+            'netlify-drawer',
+            '#netlify-drawer',
+            'iframe[src*="netlify"]'
+          ];
+          selectors.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => el.remove());
+          });
+          // Remove any floating elements with Netlify text
+          document.querySelectorAll('a, button, div').forEach(el => {
+            if (el.children.length <= 2 && el.textContent && el.textContent.includes('Powered by Netlify')) {
+              el.remove();
+            }
+          });
+        }
+        if (typeof window !== 'undefined') {
+          const observer = new MutationObserver(removeNetlifyBadge);
+          observer.observe(document.documentElement, { childList: true, subtree: true });
+          window.addEventListener('DOMContentLoaded', removeNetlifyBadge);
+          window.addEventListener('load', removeNetlifyBadge);
+        }
+      })();
+    </script>
   </head>
   <body class="bg-[#090a0f] text-neutral-100 antialiased selection:bg-indigo-500/30 selection:text-indigo-200">
     <div id="root"></div>

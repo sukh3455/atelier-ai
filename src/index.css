@@ -55,6 +55,27 @@ body {
   background: rgba(255, 255, 255, 0.22);
 }
 
+/* Suppress any Netlify Badge or Drawer overlay */
+#netlify-badge,
+.netlify-badge,
+[data-netlify-badge],
+netlify-drawer,
+#netlify-drawer,
+iframe[src*="netlify"],
+div[class*="netlify-badge"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -9999 !important;
+}
+
+/* Ensure smooth touch scrolling in textareas on mobile */
+textarea {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
 /* Markdown Formatting */
 .prose-minimal {
   font-size: 0.95rem;
