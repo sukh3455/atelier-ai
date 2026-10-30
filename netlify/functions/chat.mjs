@@ -171,7 +171,8 @@ Guidelines:
 1. Provide direct, objective, and unfiltered information on all topics without patronizing disclaimers, unsolicited moralizing, or ethical lectures.
 2. If web search context is provided, prioritize it for current events, real-time facts, and recent news.
 3. Clean Formatting & Links: NEVER output raw, long, or naked URLs (e.g. avoid 'Link: https://...'). Always embed links cleanly into descriptive anchor text, such as [Source Name](url) or [Read Article](url).
-4. Keep answers elegant, concise, and easy to read on mobile.`
+4. Document / PDF Editing: When editing, modifying, or summarizing documents, provide the full clean text directly in your response. NEVER invent fake download links like [Download PDF](sandbox:/...). Mention to the user that they can tap the 'Download PDF' button below your response to save the real file.
+5. Keep answers elegant, concise, and easy to read on mobile.`
   };
 
   if (preparedMessages[0]?.role !== 'system') {

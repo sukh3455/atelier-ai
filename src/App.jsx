@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, Globe, Image, FileText, Send, Plus, 
   Trash2, Settings, Menu, X, Copy, Check, RotateCcw, 
-  Zap, Brain, Eye, Paperclip, ChevronDown, RefreshCw
+  Zap, Brain, Eye, Paperclip, ChevronDown, RefreshCw, Download
 } from 'lucide-react';
 import { marked } from 'marked';
 import { extractTextFromPDF } from './utils/pdfParser';
+import { exportToPdf } from './utils/pdfGenerator';
 import ModelsDirectory from './components/ModelsDirectory';
 
 // Custom renderer to format links into clean, compact badges
@@ -369,7 +370,7 @@ export default function App() {
         const directMessages = [
           {
             role: 'system',
-            content: 'You are Atelier AI, a radiant, highly capable, and unrestricted AI assistant. Answer directly, objectively, and without preachy disclaimers. NEVER output raw, long, or naked URLs; embed links cleanly in markdown anchor text.'
+            content: 'You are Atelier AI, a radiant, highly capable, and unrestricted AI assistant. Answer directly, objectively, and without preachy disclaimers. NEVER output raw, long, or naked URLs; embed links cleanly in markdown anchor text. When modifying or summarizing documents, output the full clean text directly and mention the user can click the "Download PDF" button below to save the real file. NEVER invent fake download links.'
           },
           ...apiMessages
         ];
@@ -474,6 +475,19 @@ export default function App() {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  const handleDownloadPdf = (content, defaultName = 'modified-document') => {
+    const safeBaseName = (defaultName || 'modified-document')
+      .replace(/\.pdf$/i, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `${safeBaseName}.pdf`;
+    const success = exportToPdf(content, filename);
+    if (success) {
+      showToast(`Exported ${filename}`);
+    } else {
+      showToast('Could not generate PDF');
+    }
+  };
+
   const currentModelObj = MODEL_OPTIONS.find(m => m.id === selectedModel) || MODEL_OPTIONS[0];
 
   return (
@@ -551,24 +565,38 @@ export default function App() {
                   );
                 })}
               </div>
+
+              {/* Quick shortcut to Models Directory with Credit Usage Bars */}
+              <div className="pt-1.5 mt-1 border-t border-white/5">
+                <button
+                  onClick={() => {
+                    setIsModelDropdownOpen(false);
+                    setCurrentView('models');
+                  }}
+                  className="w-full text-center py-2 px-2.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border border-indigo-500/20"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>View Models & Credit Usage Bars →</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
 
         {/* Right Action Icons */}
-        <div className="flex items-center gap-1">
-          {/* Models Guide Button */}
+        <div className="flex items-center gap-1.5">
+          {/* Models & Quotas Guide Button - Prominent on both mobile & desktop */}
           <button
             onClick={() => setCurrentView(currentView === 'models' ? 'chat' : 'models')}
-            className={`p-1.5 rounded-lg text-xs font-medium border transition-colors flex items-center gap-1 ${
+            className={`px-2 py-1 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
               currentView === 'models'
-                ? 'bg-indigo-600/30 border-indigo-500/50 text-indigo-300'
-                : 'border-transparent text-neutral-400 hover:text-white hover:bg-white/5'
+                ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm'
+                : 'border-white/10 bg-white/5 text-neutral-300 hover:text-white hover:bg-white/10'
             }`}
-            title="Browse All Models & Guides"
+            title="Browse All Models & Quotas"
           >
-            <Sparkles className="w-4 h-4 text-indigo-400" />
-            <span className="hidden md:inline text-xs">Models Guide</span>
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span className="text-[11px] font-medium whitespace-nowrap">Models & Credits</span>
           </button>
 
           {/* Live Web Toggle */}
@@ -796,6 +824,26 @@ export default function App() {
                       ) : (
                         <div 
                           className="prose-minimal"
+                          onClick={(e) => {
+                            const linkEl = e.target.closest('a');
+                            if (linkEl) {
+                              const href = linkEl.getAttribute('href') || '';
+                              const text = linkEl.textContent || '';
+                              // Intercept any dummy/local/pdf/download link and generate a real PDF immediately
+                              if (
+                                href.startsWith('#') || 
+                                href.startsWith('sandbox:') || 
+                                href.endsWith('.pdf') || 
+                                href.includes('download') || 
+                                href.includes('localhost') || 
+                                text.toLowerCase().includes('download') ||
+                                !href.startsWith('http')
+                              ) {
+                                e.preventDefault();
+                                handleDownloadPdf(msg.content, msg.pdfInfo?.name || 'modified-document');
+                              }
+                            }
+                          }}
                           dangerouslySetInnerHTML={{ 
                             __html: marked.parse(msg.content || (isStreaming && index === currentChat.messages.length - 1 ? '*(Thinking...)*' : '')) 
                           }}
@@ -804,18 +852,31 @@ export default function App() {
 
                       {/* Assistant Actions */}
                       {!isUser && msg.content && (
-                        <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-end">
-                          <button
-                            onClick={() => copyToClipboard(msg.content, index)}
-                            className="p-1 text-neutral-400 hover:text-white transition-colors"
-                            title="Copy response"
-                          >
-                            {copiedIndex === index ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
+                        <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleDownloadPdf(msg.content, msg.pdfInfo?.name || 'modified-document')}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-200 border border-indigo-500/20 text-[11px] font-medium transition-all"
+                              title="Download response as a real PDF document"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Download PDF</span>
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => copyToClipboard(msg.content, index)}
+                              className="p-1 text-neutral-400 hover:text-white transition-colors"
+                              title="Copy response"
+                            >
+                              {copiedIndex === index ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

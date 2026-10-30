@@ -138,6 +138,7 @@ export default function ModelsDirectory({ activeModelId, onSelectModel, onBackTo
   // Fetch live OpenRouter rate limits & credits
   const fetchUsageStats = async () => {
     setIsLoadingStats(true);
+    try {
       const key = customKeys?.openrouter || localStorage.getItem('atelier_openrouter_key') || import.meta.env.VITE_OPENROUTER_API_KEY;
       if (!key) return;
       const res = await fetch('https://openrouter.ai/api/v1/auth/key', {

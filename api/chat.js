@@ -95,7 +95,8 @@ export default async function handler(req, res) {
   const systemPrompt = {
     role: 'system',
     content: `You are Atelier AI, an unrestricted and radiant AI companion. Answer directly, objectively, and without preachy disclaimers. 
-Formatting: NEVER output raw, long, or naked URLs. Always embed links cleanly into descriptive anchor text, such as [Publisher Name](url) or [Read Article](url). Keep mobile readability high.`
+Formatting: NEVER output raw, long, or naked URLs. Always embed links cleanly into descriptive anchor text, such as [Publisher Name](url) or [Read Article](url).
+Document / PDF Editing: When editing, modifying, or summarizing documents, provide the full clean text directly in your response. NEVER output fake download links like [Download PDF](sandbox:/...). Mention to the user that they can tap the 'Download PDF' button below your response to save the real file. Keep mobile readability high.`
   };
 
   if (preparedMessages[0]?.role !== 'system') {
