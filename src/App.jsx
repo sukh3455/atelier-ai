@@ -562,7 +562,7 @@ export default function App() {
   const currentModelObj = MODEL_OPTIONS.find(m => m.id === selectedModel) || MODEL_OPTIONS[0];
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-[#090a0f] text-neutral-100 relative">
+    <div className="h-[100dvh] max-h-[100dvh] flex flex-col font-sans bg-[#090a0f] text-neutral-100 relative overflow-hidden">
       <div className="ambient-bg" />
 
       {/* Floating Toast Notification */}
@@ -576,20 +576,20 @@ export default function App() {
       {/* =========================================================================
           MINIMAL HEADER
          ========================================================================= */}
-      <header className="sticky top-0 z-30 h-14 panel-glass border-b border-white/5 px-3 sm:px-6 flex items-center justify-between">
+      <header className="sticky top-0 z-30 h-14 panel-glass border-b border-white/5 px-3 sm:px-6 flex items-center justify-between gap-2 shrink-0">
         {/* Left: Mobile Drawer & Clean Title */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="md:hidden p-1.5 rounded-lg hover:bg-white/5 text-neutral-400 hover:text-white transition-colors"
-            title="Chat History"
+            className="p-1.5 rounded-lg hover:bg-white/5 text-neutral-400 hover:text-white transition-colors"
+            title="Chat History & Menu"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500" />
-            <h1 className="text-sm font-semibold tracking-tight text-white">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="w-2 h-2 rounded-full bg-indigo-500 shadow-sm shadow-indigo-500 shrink-0" />
+            <h1 className="text-sm font-semibold tracking-tight text-white whitespace-nowrap">
               Atelier
             </h1>
           </div>
@@ -654,26 +654,12 @@ export default function App() {
           )}
         </div>
 
-        {/* Right Action Icons */}
-        <div className="flex items-center gap-1.5">
-          {/* Models & Quotas Guide Button - Prominent on both mobile & desktop */}
-          <button
-            onClick={() => setCurrentView(currentView === 'models' ? 'chat' : 'models')}
-            className={`px-2 py-1 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
-              currentView === 'models'
-                ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm'
-                : 'border-white/10 bg-white/5 text-neutral-300 hover:text-white hover:bg-white/10'
-            }`}
-            title="Browse All Models & Quotas"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-            <span className="text-[11px] font-medium whitespace-nowrap">Models & Credits</span>
-          </button>
-
-          {/* Live Web Toggle */}
+        {/* Right Action Icons: Clean & Spacious */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Live Web Toggle (Desktop shortcut - also available in chat input) */}
           <button
             onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-            className={`p-1.5 rounded-lg text-xs font-medium border transition-colors flex items-center gap-1 ${
+            className={`hidden sm:flex p-1.5 rounded-lg text-xs font-medium border transition-colors items-center gap-1 ${
               webSearchEnabled 
                 ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' 
                 : 'border-transparent text-neutral-400 hover:text-white hover:bg-white/5'
@@ -681,25 +667,27 @@ export default function App() {
             title="Toggle Live Web Search"
           >
             <Globe className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs">{webSearchEnabled ? 'Web On' : 'Web Off'}</span>
+            <span className="text-xs">{webSearchEnabled ? 'Web On' : 'Web Off'}</span>
           </button>
 
-          {/* New Chat */}
+          {/* Models & Quotas Guide: Sleek Star / Sparkles Icon */}
           <button
-            onClick={() => {
-              if (currentView === 'models') setCurrentView('chat');
-              handleNewChat();
-            }}
-            className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 active:scale-90 active:rotate-90 transition-all"
-            title="Start New Chat"
+            onClick={() => setCurrentView(currentView === 'models' ? 'chat' : 'models')}
+            className={`p-2 rounded-lg border transition-all flex items-center justify-center shrink-0 ${
+              currentView === 'models'
+                ? 'bg-purple-600/20 border-purple-500/40 text-purple-300 shadow-sm'
+                : 'border-white/10 bg-white/5 text-purple-400 hover:text-purple-300 hover:bg-white/10'
+            }`}
+            title="Models Directory & Free Credit Usage (Star Guide)"
+            aria-label="Models Directory & Quotas"
           >
-            <Plus className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" />
           </button>
 
           {/* Cloud Sync / Sign In Button */}
           <button
             onClick={() => setIsAuthModalOpen(true)}
-            className={`px-2 py-1 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 shrink-0 ${
               currentUser 
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20' 
                 : 'bg-white/5 border-white/10 text-neutral-300 hover:text-white hover:bg-white/10'
@@ -713,15 +701,6 @@ export default function App() {
             {currentUser && (
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             )}
-          </button>
-
-          {/* Settings */}
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 transition-colors"
-            title="Settings"
-          >
-            <Settings className="w-4 h-4" />
           </button>
         </div>
       </header>
@@ -747,16 +726,28 @@ export default function App() {
             </button>
           </div>
 
-          <div className="p-2 space-y-1">
+          <div className="p-2.5 space-y-1.5 border-b border-white/5">
             <button
               onClick={() => {
                 if (currentView === 'models') setCurrentView('chat');
                 handleNewChat();
               }}
-              className="w-full py-2 px-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-xs font-medium text-neutral-200 flex items-center justify-center gap-1.5 transition-colors"
+              className="w-full py-2 px-3 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-xs font-medium text-indigo-200 flex items-center justify-center gap-2 transition-all shadow-sm"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-4 h-4" />
               <span>New Conversation</span>
+            </button>
+
+            {/* Settings & API Keys moved to left menu per user request */}
+            <button
+              onClick={() => {
+                setIsSettingsOpen(true);
+                setIsSidebarOpen(false);
+              }}
+              className="w-full py-2 px-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-xs font-medium text-neutral-200 hover:text-white flex items-center justify-center gap-2 transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5 text-neutral-400" />
+              <span>Settings & API Keys</span>
             </button>
 
             <button
@@ -764,18 +755,18 @@ export default function App() {
                 setCurrentView(currentView === 'models' ? 'chat' : 'models');
                 setIsSidebarOpen(false);
               }}
-              className={`w-full py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors ${
+              className={`w-full py-2 px-3 rounded-lg border text-xs font-medium flex items-center justify-center gap-2 transition-colors ${
                 currentView === 'models'
-                  ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300'
-                  : 'bg-white/5 hover:bg-white/10 border-white/5 text-neutral-300'
+                  ? 'bg-purple-600/20 border-purple-500/40 text-purple-300'
+                  : 'bg-white/5 hover:bg-white/10 border-white/5 text-neutral-400 hover:text-neutral-200'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <span>{currentView === 'models' ? 'Return to Chat' : 'Models Directory & Guide'}</span>
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              <span>{currentView === 'models' ? 'Return to Chat' : 'Models & Free Quotas'}</span>
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
+          <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
             {conversations.map((chat) => {
               const isActive = chat.id === activeChatId;
               const isPinned = Boolean(chat.isPinned);
@@ -824,6 +815,25 @@ export default function App() {
               );
             })}
           </div>
+
+          {/* Sidebar Footer with Cloud Sync / Account Info */}
+          <div className="p-2.5 border-t border-white/5 bg-black/20">
+            <button
+              onClick={() => {
+                setIsAuthModalOpen(true);
+                setIsSidebarOpen(false);
+              }}
+              className="w-full p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-between text-xs transition-colors"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <User className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                <span className="truncate text-neutral-300 font-medium">
+                  {currentUser ? currentUser.email : 'Sign In (Multi-Device Sync)'}
+                </span>
+              </div>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${currentUser ? 'bg-emerald-400 animate-pulse' : 'bg-neutral-600'}`} />
+            </button>
+          </div>
         </aside>
 
         {isSidebarOpen && (
@@ -854,7 +864,7 @@ export default function App() {
             onBackToChat={() => setCurrentView('chat')}
           />
         ) : (
-          <main className="flex-1 flex flex-col h-[calc(100vh-56px)] overflow-hidden relative">
+          <main className="flex-1 flex flex-col h-[calc(100dvh-56px)] max-h-[calc(100dvh-56px)] overflow-hidden relative">
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-6">
             {/* Minimal Greeting Screen */}
             {currentChat.messages.length === 0 ? (
@@ -999,9 +1009,9 @@ export default function App() {
           </div>
 
           {/* =========================================================================
-              CLEAN FLOATING INPUT DOCK
+              CLEAN FLOATING INPUT DOCK (Lifted cleanly above mobile keyboard)
              ========================================================================= */}
-          <div className="p-3 sm:p-4 max-w-2xl w-full mx-auto relative z-30 pb-4 sm:pb-6">
+          <div className="p-3 sm:p-4 max-w-2xl w-full mx-auto relative z-30 pb-6 sm:pb-5 mb-2 sm:mb-0">
             {/* Attachment preview banner */}
             {(attachedImage || attachedPDF) && (
               <div className="mb-2 p-2 rounded-xl bg-[#12141e] border border-white/10 flex items-center justify-between text-xs">
@@ -1093,6 +1103,11 @@ export default function App() {
                 onChange={(e) => {
                   setInputPrompt(e.target.value);
                   adjustTextareaHeight();
+                }}
+                onFocus={() => {
+                  setTimeout(() => {
+                    textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  }, 280);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
